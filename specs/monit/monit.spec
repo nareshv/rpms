@@ -70,6 +70,23 @@ fi
     touch -r %{_sysconfdir}/monitrc %{_sysconfdir}/monit.conf &&
     mv -f %{_sysconfdir}/monit.conf %{_sysconfdir}/monitrc 2> /dev/null || :
 
+# Create a default /etc/sysconfig/monit file and add some settings
+# so that the monit binary can happily take the /etc/monit.conf (instead of monitrc)
+echo 'OPTIONS="-c /etc/monit.conf -p /var/run/monit.pid"' > /etc/sysconfig/monit
+
+# NOTE: Ideally we should path the init.d/monit file.
+# Update the /etc/init.d/monit file so that it will take the OPTIONS
+# mentioned in the /etc/sysconfig/monit file
+cat /etc/init.d/monit | sed -e 's/daemon $NICELEVEL $MONIT/daemon $NICELEVEL $MONIT $OPTIONS/' > /etc/init.d/monit.new
+if [ ! -f /etc/init.d/monit.orig ]; then
+mv /etc/init.d/monit /etc/init.d/monit.orig
+fi
+if [ -f /etc/init.d/monit.new ];then
+mv -f /etc/init.d/monit.new /etc/init.d/monit
+else
+cp /etc/init.d/monit.orig /etc/init.d/monit
+fi
+
 %preun
 if [ $1 -eq 0 ]; then
 	service monit stop &>/dev/null || :
@@ -96,6 +113,9 @@ fi
 %attr(0600, root, root) %config(noreplace) %{_sysconfdir}/monit.conf
 
 %changelog
+* Sat Feb 03 2012 Naresh <vnareshkumar@gmail.com> - 5.3.2-3
+- Add support for /etc/monit.conf style configuration files
+
 * Mon Jan 23 2012 David Hrbáč <david@hrbac.cz> - 5.3.2-2
 - use upstream configuration file location
 
